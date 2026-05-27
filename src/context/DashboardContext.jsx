@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import { supabase } from '../utils/supabase';
 
 export const DashboardContext = createContext();
 
@@ -95,17 +96,7 @@ const parseExcelRows = (rows) => {
 };
 
 export const DashboardProvider = ({ children }) => {
-  const [rawData, setRawData] = useState(() => {
-    const saved = localStorage.getItem('naustock_raw_data');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Error parsing local storage raw data:", e);
-      }
-    }
-    return DEFAULT_TICKERS;
-  });
+  const [rawData, setRawData] = useState(DEFAULT_TICKERS);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -116,11 +107,18 @@ export const DashboardProvider = ({ children }) => {
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Auto-fetch data.xlsx if it exists in public folder of deployed web server
+  // Auto-fetch data from Supabase, fallback to data.xlsx
   useEffect(() => {
-    const loadDefaultPublicExcel = async () => {
-      // Only auto-fetch if the user has not uploaded any custom Excel file yet
-      if (localStorage.getItem('naustock_raw_data')) return;
+    const loadData = async () => {
+      try {
+        const { data, error } = await supabase.from('tickers').select('*');
+        if (data && data.length > 0) {
+          setRawData(data);
+          return;
+        }
+      } catch (err) {
+        console.error("Supabase fetch error:", err);
+      }
 
       try {
         const response = await fetch('/data.xlsx');
@@ -144,11 +142,11 @@ export const DashboardProvider = ({ children }) => {
       }
     };
 
-    loadDefaultPublicExcel();
+    loadData();
   }, []);
 
   // Update data from imported Excel rows
-  const updateDataFromExcel = (rows) => {
+  const updateDataFromExcel = async (rows) => {
     if (!Array.isArray(rows) || rows.length === 0) return false;
 
     console.log("Dòng dữ liệu Excel thô mẫu:", rows[0]);
@@ -158,7 +156,16 @@ export const DashboardProvider = ({ children }) => {
 
     if (parsed.length > 0) {
       setRawData(parsed);
-      localStorage.setItem('naustock_raw_data', JSON.stringify(parsed));
+      
+      try {
+        const { error } = await supabase
+          .from('tickers')
+          .upsert(parsed, { onConflict: 'ticker' });
+        if (error) console.error("Error upserting to Supabase:", error);
+      } catch (err) {
+        console.error("Supabase upsert exception:", err);
+      }
+
       setSearchQuery('');
       setFilterType('all');
       setCurrentPage(1);
@@ -168,9 +175,14 @@ export const DashboardProvider = ({ children }) => {
   };
 
   // Reset context rawData to original defaults
-  const resetToDefault = () => {
-    localStorage.removeItem('naustock_raw_data');
+  const resetToDefault = async () => {
     setRawData(DEFAULT_TICKERS);
+    try {
+      await supabase.from('tickers').delete().neq('ticker', 'dummy_value_for_delete_all');
+      await supabase.from('tickers').upsert(DEFAULT_TICKERS);
+    } catch(err) {
+      console.error(err);
+    }
     setSearchQuery('');
     setFilterType('all');
     setCurrentPage(1);
