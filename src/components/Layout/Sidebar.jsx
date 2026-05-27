@@ -1,10 +1,18 @@
+import { useState } from 'react';
 import { LayoutDashboard, BarChart3, PhoneCall } from 'lucide-react';
 
 export function Sidebar() {
-  const scrollToSection = (id) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+  const [activeItem, setActiveItem] = useState('overview');
+
+  const scrollToSection = (id, itemName) => {
+    setActiveItem(itemName);
+    if (id === 'top') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   };
 
@@ -12,30 +20,31 @@ export function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-logo">
         <img 
-          src="https://images.squarespace-cdn.com/content/v1/5c98696ec0970076a084ef70/1553504780540-P6M6D7N28H8G1U9K93YV/Naustock+Logo.png" 
+          src="/logo.png" 
           className="brand-logo-img" 
           alt="Naustock Logo" 
+          style={{ objectFit: 'contain', maxHeight: '70px', width: 'auto' }}
         />
       </div>
       
       <nav className="sidebar-menu">
         <button 
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
-          className="menu-item active"
+          onClick={() => scrollToSection('top', 'overview')} 
+          className={`menu-item ${activeItem === 'overview' ? 'active' : ''}`}
         >
           <LayoutDashboard />
           <span>Tổng quan</span>
         </button>
         <button 
-          onClick={() => scrollToSection('charts-section')} 
-          className="menu-item"
+          onClick={() => scrollToSection('charts-section', 'charts')} 
+          className={`menu-item ${activeItem === 'charts' ? 'active' : ''}`}
         >
           <BarChart3 />
           <span>Mô hình dự báo</span>
         </button>
         <button 
-          onClick={() => scrollToSection('contact-section')} 
-          className="menu-item"
+          onClick={() => scrollToSection('contact-section', 'contact')} 
+          className={`menu-item ${activeItem === 'contact' ? 'active' : ''}`}
         >
           <PhoneCall />
           <span>Hỗ trợ khách hàng</span>
