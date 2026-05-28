@@ -46,7 +46,7 @@ const parseExcelRows = (rows) => {
     } else {
       const fallbackTickerKey = keys.find(k => {
         const val = String(row[k]).trim();
-        return /^[A-Za-z]{3,6}$/.test(val) && isNaN(Number(val));
+        return /^[A-Za-z0-9]{3,8}$/.test(val) && isNaN(Number(val));
       });
       if (fallbackTickerKey) {
         tickerVal = row[fallbackTickerKey];
